@@ -13,7 +13,7 @@ def send_task():
                 "secret": "%Br6n887uih8g78Bbo",
                 "task": "github_user_created_date",
                 "round": 1,
-                "nonce": "qrst",
+                "nonce": "efgh",
                 "brief": "Publish a Bootstrap page with form id='github-user-${seed}' that fetches a GitHub username, optionally uses ?token=, and displays the account creation date in YYYY-MM-DD UTC inside a div with id='creation-date'.",
                 "checks": [
                     "Repo has MIT license",
