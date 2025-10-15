@@ -128,14 +128,110 @@ The `uv` tool is a modern, fast Python package installer and executor.
 ---
 
 ## 🚀 Deployment and How to use
+### Deployment on Render (Recommended)
 
-Work In Progress
+The application is best deployed as a **Web Service** on a platform like [**Render**](https://render.com), which supports running the Python server (`uvicorn`).
 
-### DATA/JSON recieved
+#### Steps
+
+1.  **Repository Setup:** Ensure your `main.py` and a `requirements.txt` file (listing `fastapi[standard]`, `uvicorn[standard]`, etc.) are in your GitHub repository.
+2.  **Render Setup:**
+    * Sign up/Log in to Render and create a **New Web Service**.
+    * Connect your GitHub account and select this repository.
+    * Choose **Python 3** as the runtime.
+3.  **Environment Variables:** Add your secret keys as **Environment Variables** in Render's configuration manually or upload `.env` file, replacing the local `.env` file:
+    * `GITHUB_TOKEN`: (Your GitHub PAT)
+    * `LLM_API_KEY`: (Your LLM service key)
+    * `SECRET`: (Your strong secret validation key)
+4.  **Start Command:** Set the Start Command to run your application using `uvicorn`:
+    ```bash
+    uvicorn main:app --host 0.0.0.0 --port $PORT
+    ```
+5.  **Deploy:** Select the **Free** plan and click **Create Web Service**. Render will provide a public URL for your API endpoint.
+
+---
+
+### How to Use the API
+
+The core functionality is exposed via a single POST endpoint.
+
+#### 🎯 Endpoint
+
+* **URL:** `[YOUR_RENDER_URL]/handle_task`
+* **Method:** `POST`
+* **Purpose:** Triggers the full workflow (LLM generation, GitHub repo creation, code push, Pages activation).
+
+#### ✉️ Request Payload
+
+The endpoint expects a JSON payload containing the task details:
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `email` | `string` | User's email (for tracking). |
+| **`secret`** | `string` | **Must match the `SECRET` environment variable.** |
+| `task` | `string` | A short name for the task (used in the repository name). |
+| `round` | `integer` | `1` for initial creation, `2` for updates/refactoring. |
+| `nonce` | `string` | A unique identifier (used in the repository name to ensure uniqueness). |
+| `brief` | `string` | Detailed instruction for the LLM. |
+| `checks` | `array` | List of requirements the generated code must meet. |
+| `evaluation_url`| `string` | URL to notify upon completion. |
+| `attachments` | `array` | Optional list of objects (`name`, `url`) pointing to files for context. |
+
+#### 🛠️ Example Usage (`send_task.py`)
+
+You can test the endpoint using the provided `send_task.py` script. **Remember to update the `API_URL` in the script with your specific Render domain.**
+
+**Example `send_task.py` Call (Round 1):**
+
+```python
+import requests
+
+def send_task():
+    # ⚠️ UPDATE THIS URL with your Render domain!
+    API_URL = "[https://YOUR-RENDER-SERVICE-NAME.onrender.com/handle_task](https://YOUR-RENDER-SERVICE-NAME.onrender.com/handle_task)"
+    
+    payload = {
+        "email": "dummy@example.com",
+        "secret": "%Br6n887uih8g78Bbo", # Must match your SECRET env var
+        "task": "github_user_created_date",
+        "round": 1,
+        "nonce": "abcd",
+        "brief": "Publish a Bootstrap page that fetches a GitHub username...",
+        "checks": ["Repo has MIT license", "README.md is professional...", /* ... */],
+        "evaluation_url": "[https://example.com/notify](https://example.com/notify)",
+        "attachments": [{"name": None, "url": None}]
+    }
+    
+    response = requests.post(API_URL, json=payload, timeout=30)
+    print("Response JSON:", response.json())
+
+if __name__ == "__main__":
+    send_task()
 ```
+
+#### 🔔 Notification Payload (Received on evaluation_url)
+
+Once the task is complete and code has been pushed (and Pages is confirmed live/built), the application sends a `POST` request to the provided `evaluation_url` with the following JSON structure:
+
+| Field | Type | Source | Description |
+| :--- | :--- | :--- | :--- |
+| `"email"` | `string` | Request | Copied from the initial request payload. |
+| `"task"` | `string` | Request | Copied from the initial request payload. |
+| `"round"` | `integer` | Request | Copied from the initial request payload. |
+| `"nonce"` | `string` | Request | Copied from the initial request payload. |
+| **`"repo_url"`** | `string` | Generated | The public URL of the newly created/updated GitHub repository. |
+| **`"commit_sha"`** | `string` | Generated | The SHA hash of the latest commit applied by the bot. |
+| **`"pages_url"`** | `string` | Generated | The public URL for the live GitHub Pages site. |
+
+**Example Notification Payload:**
+
+```json
 {
-    "repo_url": "https://github.com/user/repo",
-    "commit_sha": "abc123",
-    "pages_url": "https://user.github.io/repo/",
+  "email": "dummy@example.com",
+  "task": "<reponame>",
+  "round": 1,
+  "nonce": "abcd",
+  "repo_url": "[https://github.com/<username>/<reponame>](https://github.com/<username>/<reponame>)",
+  "commit_sha": "f10d7a6e7c9b0a3d4f5e6b7c8a9d0e1f2b3c4d5e",
+  "pages_url": "[https://<username>.github.io/<reponame>/](https://<username>.github.io/<reponame>/)"
 }
-```
