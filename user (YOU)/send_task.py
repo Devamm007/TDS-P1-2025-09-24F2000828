@@ -28,12 +28,8 @@ def send_task():
                 "evaluation_url": "https://example.com/notify",
                 "attachments": [
                     {
-                    "name": "mockup_github_form.png",
-                    "url": "data:image/png;base64,iVBORw..."
-                    },
-                    {
-                    "name": "example_output.txt",
-                    "url": "data:text/plain;base64,SGVsbG8gd29ybGQhCg=="
+                    "name": None,
+                    "url": None
                     }
                 ]
             }

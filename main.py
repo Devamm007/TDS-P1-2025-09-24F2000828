@@ -13,10 +13,16 @@ import requests
 
 from dotenv import load_dotenv
 from os import getenv
+
 import base64
-from time import sleep
 
 import re
+
+from typing import Any
+import asyncio
+from functools import partial
+
+from time import sleep
 
 app = FastAPI()
 
@@ -56,6 +62,9 @@ def create_repo(reponame: str):
         print(f"Repository {reponame} created successfully. [{response.json().get('html_url')}]")
         return response.json()
 
+async def async_create_repo(reponame: str):
+    return await asyncio.to_thread(create_repo, reponame)
+
 def enable_pages(reponame: str):
     ''''Enable GitHub Pages for the given repository using API'''
 
@@ -83,7 +92,7 @@ def enable_pages(reponame: str):
     else:
         print(f"GitHub Pages enabled for repository {reponame}.")
         return response.json()
-    
+
 def get_sha_latest_commit(reponame: str, branch: str = "main") -> str:
     '''Get the SHA of the latest commit on the given branch of the repository'''
 
@@ -101,27 +110,25 @@ def get_sha_latest_commit(reponame: str, branch: str = "main") -> str:
         raise Exception(f"Failed to get latest commit: {response.status_code}, {response.text}")
     else:
         return response.json().get('sha')
-    
+
 def extract_files_from_response(response_content: str) -> list[dict]:
     """
     Parses the response content string to extract file names and their contents
-    into a list of dictionaries.
+    into a list of dictionaries using the token-efficient format.
 
     The format expected is:
     ---
-    ### X. **`FILENAME`** (Optional Description)
-    <markdown code fence with content>
+    <<FILENAME.ext>>
+    <content>
+    <<END_FILE>>
     ---
     """
-    # Define the regular expression to capture the file name and content.
-    # It looks for:
-    # 1. A section starting with '### X. **`FILENAME`**'
-    # 2. Followed by a code fence (```language\ncontent\n```)
-    # The 'FILENAME' is captured in group 1.
-    # The 'CONTENT' is captured in group 2.
-    # re.DOTALL allows '.' to match newlines, which is crucial for the content.
+    # Regex pattern to match the simplified file sections: <<FILENAME>>...<<END_FILE>>
+    # This is more robust as it uses unique start/end markers.
     pattern = re.compile(
-        r"###\s+\d+\.\s+\*\*\s*`([^`]+)`\s*\*\*\s*\(?[^)]*\)?\s*\n\s*```[a-z]*\n(.*?)\n```",
+        r"<<([^>]+)>>\s*\n"      # Start marker: <<FILENAME.ext>>
+        r"(.*?)"                 # Non-greedily capture content
+        r"\n<<END_FILE>>",       # End marker: <<END_FILE>>
         re.DOTALL | re.IGNORECASE
     )
 
@@ -131,12 +138,14 @@ def extract_files_from_response(response_content: str) -> list[dict]:
     file_list = []
 
     for filename, content in matches:
-        # Clean up the extracted content: remove leading/trailing whitespace
-        # and ensure the filename is clean.
         cleaned_filename = filename.strip()
+        # Clean up potential leading/trailing newlines or spaces in content
         cleaned_content = content.strip()
-
-        # Append the extracted data to the list
+        
+        # Skip if content is essentially empty after stripping
+        if not cleaned_content or not cleaned_filename:
+            continue
+            
         file_list.append({
             "filename": cleaned_filename,
             "content": cleaned_content
@@ -146,26 +155,61 @@ def extract_files_from_response(response_content: str) -> list[dict]:
 
 def llm_process(data: dict) -> list[dict]:
     """
-    Process task data through LLM API to generate code files
-    Returns list of dicts with name and content for each file
+    Process task data through LLM API to generate code files.
+    Returns list of dicts with name and content for each file.
     """
     headers = {
         "Authorization": f"Bearer {app.state.LLM_API_KEY}",
         "Content-Type": "application/json"
     }
 
-    # Construct prompt from task data
+    # System Instruction: Focused and strict
+    system_instruction = (
+        "You are a strict, highly efficient code generation tool. "
+        "Generate ONLY the requested files. "
+        "DO NOT add any conversational text, explanations, or additional markdown outside the required file format. "
+        "Use the specified file format: <<FILENAME.ext>>[newline]<content>[newline]<<END_FILE>>"
+    )
+
+    # User Prompt: Highly compressed
     prompt = f"""
     Task: {data.get('task')}
     Brief: {data.get('brief')}
-    Requirements:
-    - Create a app/web app that meets the task brief
-    - Must have a README.md file with setup and usage instructions
-    - Include necessary HTML, CSS, Python, Javascript files
-    - Code should be well-documented and follow best practices
-    - Must pass these checks: {data.get('checks')}
+    Generate a complete, high-quality web app. All code must be well-documented.
+    Checks: {data.get('checks')}
+    Files required: README.md, plus necessary HTML, CSS, JS, Python.
+
+    """
     
-    Generate all required code files.
+    # Attachments: Included as a dedicated, compressed block
+    attachments = data.get('attachments', [])
+    if attachments:
+        prompt += "\n--- ATTACHMENTS (File Name: URI) ---\n"
+        for attachment in attachments:
+            prompt += f"{attachment.get('name', 'N/A')}: {attachment.get('url', 'N/A')}\n"
+        prompt += "--- END ATTACHMENTS ---\n"
+
+
+    # Output Instruction: Strict format definition (Critical for robustness)
+    prompt += """
+    
+    Output all generated files using this format ONLY, starting immediately after this instruction:
+    
+    <<FILENAME.ext>>
+    // File content goes here
+    <<END_FILE>>
+    
+    Example:
+
+    <<README.md>>
+    # Project Title
+    
+    Setup instructions...
+    <<END_FILE>>
+    
+    <<index.html>>
+    <!DOCTYPE html>...
+    <<END_FILE>>
     """
 
     # API request payload
@@ -174,14 +218,14 @@ def llm_process(data: dict) -> list[dict]:
         "messages": [
             {
                 "role": "system",
-                "content": "You are a code generation assistant. Generate complete, working code files."
+                "content": system_instruction
             },
             {
                 "role": "user", 
                 "content": prompt
             }
         ],
-        "temperature": 0.4
+        "temperature": 0.2
     }
 
     try:
@@ -197,7 +241,7 @@ def llm_process(data: dict) -> list[dict]:
         # Parse LLM response and extract code files
         content = response.json()["choices"][0]["message"]["content"]
         files = extract_files_from_response(content)
-        print(files)
+        print(f"LLM generated files: {files}")
         return files
 
     except Exception as e:
@@ -244,23 +288,36 @@ def push_code(reponame: str, files: list[dict], round: int):
         else:
             print(f"File {filename} pushed successfully to repository {reponame}.")
 
-def round1_handler(data: dict) -> dict:
+async def round1_handler(data: dict) -> dict:
     '''Handle round 1 tasks: create repo, enable pages, generate code with llm, and push code'''
 
-    #LLM OPERATIONS
-    files = llm_process(data)
-    if not files:
-        return {"error": "LLM failed to generate code files"}
-
-    # files = [
-    #     {"filename": "index.html", "content": "Hello World!"},
-    # ]
-    
-    #GITHUB OPERATIONS
     reponame = f"{data['task']}-{data['nonce']}"
-    create_repo(reponame)
-    enable_pages(reponame)
+
+    #LLM OPERATIONS AND GITHUB REPO CREATION IN PARALLEL
+    llm_task = asyncio.to_thread(partial(llm_process, data=data))
+    create_repo_task = asyncio.to_thread(partial(create_repo, reponame=reponame))
+
+    results = await asyncio.gather(llm_task, create_repo_task)
+
+    files = results[0]
+
+    # #LLM OPERATIONS
+    # files = llm_process(data)
+    # if not files:
+    #     return {"error": "LLM failed to generate code files"}
+
+    # # files = [
+    # #     {"filename": "index.html", "content": "Hello World!"},
+    # # ]
+    
+    # #GITHUB OPERATIONS
+    # create_repo(reponame)
+
+    #PUSH CODE
     push_code(reponame, files, 1)
+    # ENABLE PAGES
+    enable_pages(reponame)
+    
     latestsha = get_sha_latest_commit(reponame)
 
     return {
@@ -273,38 +330,89 @@ def round1_handler(data: dict) -> dict:
             "pages_url": f"https://devamm007.github.io/{reponame}/",
             }
 
-# the extract_files_from_response is not robust, many time it is just giving any content for a specific file name.
-# llm_process should also use and send attachments as part of its prompt.
+async def round2_handler(data: dict) -> dict:
+    '''Handle round 2 tasks: feature update, code refactoring'''
 
-def round2_handler(data: dict) -> dict:
-    pass
-    return {"status": "Round 2 task processed"}
+    reponame = f"{data['task']}-{data['nonce']}"
+    
+    files = await asyncio.to_thread(partial(llm_process, data=data))
+    if not files:
+        raise Exception("No files generated by LLM for round 2")
+        
+    # PUSH UPDATED CODE
+    push_code(reponame, files, 2)
+    
+    latestsha = get_sha_latest_commit(reponame)
+
+    response_payload = {
+        "email": data.get("email"),
+        "task": data.get("task"),
+        "round": 2,
+        "nonce": data.get("nonce"),
+        "repo_url": f"https://github.com/Devamm007/{reponame}",
+        "commit_sha": f"{latestsha}",
+        "pages_url": f"https://devamm007.github.io/{reponame}/",
+    }
+    
+    return response_payload
 
 '''
 post endpoint that takes json body with fields: email, secret, task, round, nonce, brief,
 checks[array], evaluation_url, attachments[array with object with fields name and url]
 '''
 @app.post("/handle_task")
-def handle_task(data: dict):
+async def handle_task(data: dict):
     # validate secret
     if not validate_secret(data.get('secret', '')):
         return {"error": "Invalid secret"}
     else:
         # process the task
         if data.get('round') == 1:
-            payload = round1_handler(data)
+            payload = await round1_handler(data)
 
-            # check if pages_url is live (wait of max 110 seconds)
-            for _ in range(110):
+            # check if pages_url is live (wait for max 2min)
+            for _ in range(24):
                 r = requests.get(payload.get('pages_url'), timeout=5)
                 if r.status_code == 200:
+                    print(f"  ✅ Pages Live: {payload.get('pages_url')}")
                     break
-                sleep(1)
+                sleep(5)
+            
+            # if data.get('evaluation_url'):
+            #     try:
+            #         requests.post(data.get('evaluation_url'), json=payload, timeout=5)
+            #     except Exception as e:
+            #         print(f"Failed to notify evaluation_url: {str(e)}")
                 
             return payload
         elif data.get('round') == 2:
-            round2_handler(data)
-            return {"status": "Round 2 task processed"}
+            payload = await round2_handler(data)
+            url = f"https://api.github.com/repos/Devamm007/{data['task']}-{data['nonce']}/pages/builds/latest"
+            headers = {
+                "Authorization": f"Bearer {app.state.GITHUB_TOKEN}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            expected_sha = payload.get('commit_sha')
+
+            # check if pages_url is of latest version (wait for max 2min)
+            for _ in range(24):               
+                response = requests.get(url, headers=headers, timeout=5)
+
+                build_status = response.json().get('status')
+                build_sha = response.json().get('commit')
+
+                if build_status == "built" and build_sha == expected_sha:
+                    print(f"  ✅ Pages Deployed: Status 'built' and SHA matches latest commit")
+                    break
+                sleep(5)
+            
+            # if data.get('evaluation_url'):
+            #     try:
+            #         requests.post(data.get('evaluation_url'), json=payload, timeout=5)
+            #     except Exception as e:
+            #         print(f"Failed to notify evaluation_url: {str(e)}")
+                
+            return payload
         else:
             return {"error": "Invalid round"}
 
