@@ -17,7 +17,7 @@ def send_task():
 
     payload = {
                 "email": "student@example.com",
-                "secret": "%Br6n887uih8g78Bbo",
+                "secret": "N7t*7b67B8t7t9B8",
                 "task": "github_user_created_date",
                 "round": 1,
                 "nonce": "abcd",

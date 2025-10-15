@@ -9,10 +9,13 @@
 # ///
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import requests
 
 from dotenv import load_dotenv
 from os import getenv
+from pathlib import Path
 
 import base64
 
@@ -25,10 +28,20 @@ from time import sleep
 
 app = FastAPI()
 
+# Mount the templates directory
+templates_dir = Path(__file__).parent / "templates"
+app.mount("/templates", StaticFiles(directory=str(templates_dir)), name="templates")
+
 load_dotenv()
 app.state.SECRET = getenv("SECRET")
 app.state.LLM_API_KEY = getenv("LLM_API_KEY")
 app.state.GITHUB_TOKEN = getenv("GITHUB_TOKEN")
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    """Serve the index.html page"""
+    with open(templates_dir / "index.html") as f:
+        return HTMLResponse(content=f.read())
 
 def validate_secret(secret: str) -> bool:
     return secret == app.state.SECRET
