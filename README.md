@@ -83,7 +83,7 @@ OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 ---
 
-## 🛠️ Installation and Execution
+## 🛠️ Installation and Execution Locally
 
 You have a few options for installing the requirements and running the server.
 
@@ -124,3 +124,18 @@ The `uv` tool is a modern, fast Python package installer and executor.
     python3 main.py
     ```
     *(Remember to keep the virtual environment active, or use `uv run main.py` to handle the environment automatically.)*
+
+---
+
+## 🚀 Deployment and How to use
+
+Work In Progress
+
+### DATA/JSON recieved
+```
+{
+    "repo_url": "https://github.com/user/repo",
+    "commit_sha": "abc123",
+    "pages_url": "https://user.github.io/repo/",
+}
+```

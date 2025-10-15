@@ -8,20 +8,34 @@
 import requests
 
 def send_task():
-    payload = { "email": "student@example.com",
+    payload = {
+                "email": "student@example.com",
                 "secret": "%Br6n887uih8g78Bbo",
-                "task": "captcha-solver-...",
+                "task": "github_user_created_date",
                 "round": 1,
-                "nonce": "ab12-...",
-                "brief": "Create a captcha solver that handles ?url=https://.../image.png. Default to attached sample.",
+                "nonce": "qrst",
+                "brief": "Publish a Bootstrap page with form id='github-user-${seed}' that fetches a GitHub username, optionally uses ?token=, and displays the account creation date in YYYY-MM-DD UTC inside a div with id='creation-date'.",
                 "checks": [
-                    "Repo has MIT license"
-                    "README.md is professional",
-                    "Page displays captcha URL passed at ?url=...",
-                    "Page displays solved captcha text within 15 seconds",
+                    "Repo has MIT license",
+                    "README.md is professional and includes setup/usage instructions.",
+                    "Page uses Bootstrap 5 for styling.",
+                    "Form with id='github-user-${seed}' exists and has a text input for the username.",
+                    "The account creation date is correctly fetched from the GitHub API (e.g., /users/{username}).",
+                    "The creation date is formatted as YYYY-MM-DD UTC and displayed in a div with id='creation-date'.",
+                    "The page correctly handles and utilizes a GitHub Personal Access Token (PAT) passed via a URL parameter (?token=) for authenticated requests.",
+                    "The page displays an appropriate error message if the user is not found or the API request fails."
                 ],
                 "evaluation_url": "https://example.com/notify",
-                "attachments": [{ "name": "sample.png", "url": "data:image/png;base64,iVBORw..." }]
+                "attachments": [
+                    {
+                    "name": "mockup_github_form.png",
+                    "url": "data:image/png;base64,iVBORw..."
+                    },
+                    {
+                    "name": "example_output.txt",
+                    "url": "data:text/plain;base64,SGVsbG8gd29ybGQhCg=="
+                    }
+                ]
             }
     
     response = requests.post("http://localhost:8000/handle_task", json=payload)
