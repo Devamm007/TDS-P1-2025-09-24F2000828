@@ -6,7 +6,7 @@
 
 ## 🎯 Overview
 
-###*If you copy this project as it is, **without understanding and debugging**, I feel sorry for you to miss this learning experience and reduce chances of being self-employed/employed, giving an advantage to your friendly-competition.*
+### *If you copy this project as it is, **without understanding and debugging**, I feel sorry for you to miss this learning experience and reduce chances of being self-employed/employed, giving an advantage to your friendly-competition.*
 
 The **Self-Hosted-LLM-DevOps-Engine** is a API-driven backend service designed to automate the process of turning a simple task brief into a working code repository. Users can send a JSON payload to the running API, which then orchestrates the entire development and deployment flow: LLM code generation (simulated here) $\rightarrow$ GitHub Repository creation $\rightarrow$ GitHub Pages deployment.
 
