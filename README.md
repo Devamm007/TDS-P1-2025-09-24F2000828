@@ -18,8 +18,8 @@
     * [Option 2: Using requirements.txt](#option-2-using-requirements)
 6.  [🚀 Deployment and How to use](#-deployment-and-how-to-use)
     * [Deployment on Render (Recommended)](#deployment-on-render-recommended)
+    * [Deployment on Hugging Face Spaces (Using Docker)](#deployment-on-hugging-face-spaces-using-docker)
     * [How to Use the API](#how-to-use-the-api)
-    * [🔔 Notification Payload (Received on `evaluation_url`)](#-notification-payload-received-on-evaluation_url)
 7.  [📜 License](#-license)
 
 ---
@@ -171,6 +171,52 @@ The application is best deployed as a **Web Service** on a platform like [**Rend
     ```
 5.  **Deploy:** Select the **Free** plan and click **Create Web Service**. Render will provide a public URL for your API endpoint.
 
+### Deployment on Hugging Face Spaces (Using Docker)
+Since this is a standard FastAPI API, the Docker SDK must be used for deployment on Hugging Face Spaces.
+
+#### Steps
+Repository Setup: Ensure the following files are pushed to your Git repository:
+- main.py
+- requirements.txt
+- Dockerfile (using an image like python:3.12-slim and binding to port 7860).
+```
+# 1. Base Image: Start from an official Python image
+FROM python:3.12-slim
+
+# 2. Set Environment Variables
+# The default port for Spaces is 7860, which the app must bind to.
+ENV PORT 7860
+ENV PYTHONUNBUFFERED 1
+
+# 3. Create a Working Directory (where the app will live inside the container)
+WORKDIR /app
+
+# 4. Copy Dependencies File
+# Only copy the requirements file first to take advantage of Docker layer caching
+COPY requirements.txt .
+
+# 5. Install Dependencies
+# Use --no-cache-dir for a smaller image size
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 6. Copy Application Code and Templates
+# Copy the entire project directory (including main.py, and the templates folder)
+# The '.' copies from the build context (your repo root) to the WORKDIR (/app)
+COPY . .
+
+# 7. Define the Command to Run the Application
+# This starts Uvicorn, binding to all interfaces (0.0.0.0) on the required port (7860)
+# 'main:app' refers to the 'app' object in 'main.py'
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+```
+Spaces Setup:
+- Go to Hugging Face Spaces and create a New Space.
+- Select the Docker SDK.
+- Choose the hardware (CPU Basic is often sufficient) and upload main.py, requirements.txt, Dockerfile to Hugging Face Space.
+- Secrets Management: Navigate to the Settings tab of your Space and add the GITHUB_TOKEN, LLM_API_KEY, SECRET
+
+Deploy: The Space will automatically build the Docker image and deploy the service on port 7860. The public URL will be https://<hf-user>-<space-name>.hf.space.
+
 ---
 
 ### How to Use the API
@@ -182,6 +228,17 @@ The core functionality is exposed via a single POST endpoint.
 * **URL:** `[YOUR_RENDER_URL]/handle_task`
 * **Method:** `POST`
 * **Purpose:** Triggers the full workflow (LLM generation, GitHub repo creation, code push, Pages activation).
+
+#### 📖 Testing via Swagger UI
+To test the API interactively, navigate to the automatic documentation provided by FastAPI by appending /docs to your deployment URL:
+Render Swagger URL: [YOUR_RENDER_URL]/docs
+Hugging Face Swagger URL: https://<hf-user>-<space-name>.hf.space/docs
+Open the Swagger UI in your browser.
+Expand the POST /handle_task endpoint.
+Click Try it out.
+Input a valid JSON payload (see below for structure) into the Request body field.
+Ensure the "secret" field exactly matches the SECRET environment variable you set during deployment.
+Click Execute to send the request.
 
 #### ✉️ Request Payload
 
