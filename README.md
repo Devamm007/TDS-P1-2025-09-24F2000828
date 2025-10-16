@@ -9,13 +9,13 @@
 
 1.  [🎯 Overview](#-overview)
 2.  [📑 TDS-Project-1](#-tds-project-1)
-3.  [🛠️ Prerequisites](#-prerequisites)
+3.  [🛠️ Prerequisites](#prerequisites)
 4.  [🔑 Configuration & Setup](#-configuration--setup)
     * [1. Generate Required Tokens](#1-generate-required-tokens)
     * [2. Configure the `.env` File](#2-configure-the-env-file)
-5.  [🛠️ Installation and Execution Locally](#-installation-and-execution-locally)
+5.  [🛠️ Installation and Execution Locally](#installation-and-execution-locally)
     * [Option 1: Using UV (Recommended)](#option-1-using-uv-recommended)
-    * [Option 2: Using `requirements.txt`](#option-2-using-requirements-txt)
+    * [Option 2: Using requirements.txt](#option-2-using-requirements)
 6.  [🚀 Deployment and How to use](#-deployment-and-how-to-use)
     * [Deployment on Render (Recommended)](#deployment-on-render-recommended)
     * [How to Use the API](#how-to-use-the-api)
@@ -65,9 +65,8 @@ This is payload's structure to POST to evaluation.url:
   "pages_url": "https://user.github.io/repo/",
 }
 ```
----
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following ready:
 
@@ -106,7 +105,7 @@ OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 ---
 
-## 🛠️ Installation and Execution Locally
+## Installation and Execution Locally
 
 You have a few options for installing the requirements and running the server.
 
@@ -126,7 +125,7 @@ The `uv` tool is a modern, fast Python package installer and executor.
     uv run main.py
     ```
 
-### Option 2: Using `requirements.txt`
+### Option 2: Using requirements
 
 1.  **Install Dependencies:**
     It is highly recommended to use a virtual environment or you can directly install dependencies.
@@ -258,7 +257,7 @@ Once the task is complete and code has been pushed (and Pages is confirmed live/
   "commit_sha": "f10d7a6e7c9b0a3d4f5e6b7c8a9d0e1f2b3c4d5e",
   "pages_url": "[https://<username>.github.io/<reponame>/](https://<username>.github.io/<reponame>/)"
 }
-
+```
 ---
 
 ## 📜 License
