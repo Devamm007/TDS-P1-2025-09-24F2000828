@@ -175,7 +175,7 @@ The application is best deployed as a **Web Service** on a platform like [**Rend
 Since this is a standard FastAPI API, the Docker SDK must be used for deployment on Hugging Face Spaces.
 
 #### Steps
-Repository Setup: Ensure the following files are pushed to your Git repository:
+Repository Setup: Ensure the following files are pushed to your Git repository or directly add/create them on Hugging Face Space:
 - main.py
 - requirements.txt
 - Dockerfile (using an image like python:3.12-slim and binding to port 7860).
@@ -188,25 +188,22 @@ FROM python:3.12-slim
 ENV PORT 7860
 ENV PYTHONUNBUFFERED 1
 
-# 3. Create a Working Directory (where the app will live inside the container)
-WORKDIR /app
+# 3. Set Working Directory to root
+WORKDIR /
 
-# 4. Copy Dependencies File
-# Only copy the requirements file first to take advantage of Docker layer caching
+# 4. Copy Dependencies File to root
 COPY requirements.txt .
 
 # 5. Install Dependencies
-# Use --no-cache-dir for a smaller image size
+# This layer only gets rebuilt if requirements.txt changes
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy Application Code and Templates
-# Copy the entire project directory (including main.py, and the templates folder)
-# The '.' copies from the build context (your repo root) to the WORKDIR (/app)
+# 6. Copy Application Code and Templates to root
+# This copies everything from your local repo root to the container's root (/)
 COPY . .
 
 # 7. Define the Command to Run the Application
-# This starts Uvicorn, binding to all interfaces (0.0.0.0) on the required port (7860)
-# 'main:app' refers to the 'app' object in 'main.py'
+# Assumes 'main.py' is in the root directory and contains the 'app' object
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
 ```
 - README.md must start with configuration setup with or without license:
@@ -225,7 +222,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
 Spaces Setup:
 - Go to Hugging Face Spaces and create a New Space.
 - Select the Docker SDK.
-- Choose the hardware (CPU Basic is often sufficient) and upload main.py, requirements.txt, Dockerfile to Hugging Face Space.
+- Choose the hardware (CPU Basic is often sufficient) and upload main.py, requirements.txt, Dockerfile, templates folder to Hugging Face Space.
 - Secrets Management: Navigate to the Settings tab of your Space and add the GITHUB_TOKEN, LLM_API_KEY, SECRET
 
 Deploy: The Space will automatically build the Docker image and deploy the service on port 7860. The public URL will be https://<hf-user>-<space-name>.hf.space.
