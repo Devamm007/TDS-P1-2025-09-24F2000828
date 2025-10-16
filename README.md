@@ -209,6 +209,19 @@ COPY . .
 # 'main:app' refers to the 'app' object in 'main.py'
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
 ```
+- README.md must start with configuration setup with or without license:
+```
+   ---
+   title: {{title}}
+   emoji: {{emoji}}
+   colorFrom: {{colorFrom}}
+   colorTo: {{colorTo}}
+   sdk: docker
+   license: mit
+   app_file: main.py
+   pinned: false
+   ---
+```
 Spaces Setup:
 - Go to Hugging Face Spaces and create a New Space.
 - Select the Docker SDK.
