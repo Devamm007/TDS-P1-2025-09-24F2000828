@@ -225,8 +225,7 @@ Spaces Setup:
 - Choose the hardware (CPU Basic is often sufficient) and upload main.py, requirements.txt, Dockerfile, templates folder to Hugging Face Space.
 - Secrets Management: Navigate to the Settings tab of your Space and add the GITHUB_TOKEN, LLM_API_KEY, SECRET
 
-Deploy: The Space will automatically build the Docker image and deploy the service on port 7860. The public URL will be https://<hf-user>-<space-name>.hf.space.
-
+Deploy: The Space will automatically build the Docker image and deploy the service on port 7860. The public URL will be https://{your-username}-{your-space-name}.hf.space
 ---
 
 ### How to Use the API
@@ -241,14 +240,16 @@ The core functionality is exposed via a single POST endpoint.
 
 #### 📖 Testing via Swagger UI
 To test the API interactively, navigate to the automatic documentation provided by FastAPI by appending /docs to your deployment URL:
-Render Swagger URL: [YOUR_RENDER_URL]/docs
-Hugging Face Swagger URL: https://<hf-user>-<space-name>.hf.space/docs
+Render Swagger URL: https://{your-username}-{your-space-name}.hf.space/docs
+Hugging Face Swagger URL: https://{your-username}-{your-space-name}.hf.space/
 Open the Swagger UI in your browser.
 Expand the POST /handle_task endpoint.
 Click Try it out.
 Input a valid JSON payload (see below for structure) into the Request body field.
 Ensure the "secret" field exactly matches the SECRET environment variable you set during deployment.
 Click Execute to send the request.
+OR
+Directly use https://{your-username}-{your-space-name}.hf.space/handle_task
 
 #### ✉️ Request Payload
 
