@@ -3,6 +3,26 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/Framework-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![GitHub API](https://img.shields.io/badge/Automation-GitHub_API-black.svg)](https://docs.github.com/en/rest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## 📑 Table of Contents
+
+1.  [🎯 Overview](#-overview)
+2.  [📑 TDS-Project-1](#-tds-project-1)
+3.  [🛠️ Prerequisites](#-prerequisites)
+4.  [🔑 Configuration & Setup](#-configuration--setup)
+    * [1. Generate Required Tokens](#1-generate-required-tokens)
+    * [2. Configure the `.env` File](#2-configure-the-env-file)
+5.  [🛠️ Installation and Execution Locally](#-installation-and-execution-locally)
+    * [Option 1: Using UV (Recommended)](#option-1-using-uv-recommended)
+    * [Option 2: Using `requirements.txt`](#option-2-using-requirements-txt)
+6.  [🚀 Deployment and How to use](#-deployment-and-how-to-use)
+    * [Deployment on Render (Recommended)](#deployment-on-render-recommended)
+    * [How to Use the API](#how-to-use-the-api)
+    * [🔔 Notification Payload (Received on `evaluation_url`)](#-notification-payload-received-on-evaluation_url)
+7.  [📜 License](#-license)
+
+---
 
 ## 🎯 Overview
 
@@ -45,6 +65,7 @@ This is payload's structure to POST to evaluation.url:
   "pages_url": "https://user.github.io/repo/",
 }
 ```
+---
 
 ## 🛠️ Prerequisites
 
@@ -237,3 +258,8 @@ Once the task is complete and code has been pushed (and Pages is confirmed live/
   "commit_sha": "f10d7a6e7c9b0a3d4f5e6b7c8a9d0e1f2b3c4d5e",
   "pages_url": "[https://<username>.github.io/<reponame>/](https://<username>.github.io/<reponame>/)"
 }
+
+---
+
+## 📜 License
+This project is licensed under the MIT License.
