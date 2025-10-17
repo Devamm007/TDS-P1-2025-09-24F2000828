@@ -290,15 +290,21 @@ def push_code(files: list[dict], round: int, data: dict):
             "content": content_b64
         }
         
-        # Check if the file exists (by fetching its SHA)
+        # Check if file exists by fetching its SHA and set expected status code
         file_sha = get_file_sha(filename, data)
         if file_sha:
             payload["sha"] = file_sha
+            action = "updated"
+            expected_code = 200  # Updating an existing file
+        else:
+            action = "created"
+            expected_code = 201  # Creating a new file
 
         github_request(
             'put',
             f"repos/{data.get('github_username')}/{data.get('reponame')}/contents/{filename}",
             payload,
+            expected_code = expected_code
         )
         print(f"File {filename} pushed successfully to repository {data.get('reponame')}.")
 
