@@ -397,7 +397,9 @@ def push_code(reponame: str, files: list[dict], round: int):
 async def round1_handler(data: dict) -> dict:
     '''Handle round 1 tasks: create repo, enable pages, generate code with llm, and push code'''
 
-    reponame = f"{data['task']}-{data['nonce']}"
+    # creating unique identifier using secret
+    unique_id = app.state.SECRET[-6:]
+    reponame = f"{data['task']}-{unique_id}"
 
     # LLM OPERATIONS AND GITHUB REPO CREATION IN PARALLEL
     llm_task = asyncio.to_thread(partial(llm_process, data=data))
@@ -427,7 +429,10 @@ async def round1_handler(data: dict) -> dict:
 async def round2_handler(data: dict) -> dict:
     '''Handle round 2 tasks: feature update, code refactoring'''
 
-    reponame = f"{data['task']}-{data['nonce']}"
+    # creating unique identifier using secret
+    unique_id = app.state.SECRET[-6:]
+    reponame = f"{data['task']}-{unique_id}"
+
     existing_files = fetch_repo_files(reponame)
 
     context_block = "\n--- EXISTING CODE CONTEXT ---\n"
@@ -491,7 +496,12 @@ async def handle_task(data: dict):
             return payload
         elif data.get('round') == 2:
             payload = await round2_handler(data)
-            url = f"https://api.github.com/repos/Devamm007/{data['task']}-{data['nonce']}/pages/builds/latest"
+
+            # creating unique identifier using secret
+            unique_id = app.state.SECRET[-6:]
+            reponame = f"{data['task']}-{unique_id}"
+            
+            url = f"https://api.github.com/repos/Devamm007/{reponame}/pages/builds/latest"
             headers = {
                 "Authorization": f"Bearer {app.state.GITHUB_TOKEN}",
                 "Accept": "application/vnd.github.v3+json"
