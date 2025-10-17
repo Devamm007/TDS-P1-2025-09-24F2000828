@@ -401,7 +401,11 @@ def process_task(data: dict) -> dict:
 
         if data.get('evaluation_url'):
             try:
-                requests.post(data.get('evaluation_url'), json=payload, timeout=5)
+                response = requests.post(data.get('evaluation_url'), json=payload, timeout=5)
+                # prints {"sucess": true}
+                # OR {"status": "received"}
+                # OR echo of the payload that you sent
+                print(f"\nStatus Code: {response.status_code}\nSuccesful POST to {data.get('evaluation_url')}: {response.text}\n")
             except Exception as e:
                 print(f"Failed to notify evaluation_url: {str(e)}")
         return payload
