@@ -226,6 +226,7 @@ Spaces Setup:
 - Secrets Management: Navigate to the Settings tab of your Space and add the GITHUB_TOKEN, LLM_API_KEY, SECRET
 
 Deploy: The Space will automatically build the Docker image and deploy the service on port 7860. The public URL will be https://{your-username}-{your-space-name}.hf.space
+
 ---
 
 ### How to Use the API
