@@ -112,10 +112,9 @@ def fetch_repo_files(data: dict) -> list[dict]:
     try:
         repo_contents = github_request('get', f"repos/{data.get('github_username')}/{data.get('reponame')}/contents/")
         fetched_files = []
-        EXCLUDE_FILES = {'.gitignore', 'LICENSE'}
         
         for item in repo_contents:
-            if item.get('type') != 'file' or item.get('name') in EXCLUDE_FILES:
+            if item.get('type') != 'file':
                 continue
                 
             download_url = item.get('download_url')
@@ -200,7 +199,7 @@ def llm_process(data: dict) -> list[dict]:
     Round: {current_round}
     Goal: {prompt_goal}
     Checks: {data.get('checks')}
-    Files required: README.md, plus necessary HTML, CSS, JS.
+    Files required: README.md (must include usage guide, cloning guide, inform License is MIT along with a message of being open to collaboration) , plus necessary HTML, CSS, JS.
     """
     
     # Attachments: Included as a dedicated, compressed block
