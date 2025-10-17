@@ -291,7 +291,8 @@ def push_code(files: list[dict], round: int, data: dict):
         }
         
         # Check if the file exists (by fetching its SHA)
-        if file_sha := get_file_sha(filename, data):
+        file_sha = get_file_sha(filename, data)
+        if file_sha:
             payload["sha"] = file_sha
 
         github_request(
