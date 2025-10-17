@@ -120,6 +120,58 @@ def get_sha_latest_commit(reponame: str, branch: str = "main") -> str:
         raise Exception(f"Failed to get latest commit: {response.status_code}, {response.text}")
     else:
         return response.json().get('sha')
+    
+def fetch_repo_files(reponame: str) -> list[dict]:
+    '''Fetch the content of all relevant files from the repository's root directory'''
+
+    EXCLUDE_FILES = ["LICENSE", ".gitignore"] 
+    contents_url = f"https://api.github.com/repos/Devamm007/{reponame}/contents/"
+    
+    headers = {
+        "Authorization": f"Bearer {app.state.GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json" # Standard JSON accept header for listing contents
+    }
+    
+    fetched_files = []
+
+    try:
+        # Get list of files in the root directory
+        response = requests.get(contents_url, headers=headers)
+        if response.status_code != 200:
+            print(f"Failed to list repo contents: {response.status_code}, {response.text[:100]}...")
+            return []
+            
+        repo_contents = response.json()
+        
+        for item in repo_contents:
+            filename = item.get('name')
+            file_type = item.get('type') # Can be 'file', 'dir', 'symlink', etc.
+            
+            if file_type != 'file' or filename in EXCLUDE_FILES:
+                continue
+            
+            # Use the download_url provided in the list response to get the raw content
+            download_url = item.get('download_url')
+            
+            if not download_url:
+                print(f"No download URL for {filename}, skipping.")
+                continue
+
+            # Fetch the raw content of the file
+            content_response = requests.get(download_url, headers={"Authorization": f"Bearer {app.state.GITHUB_TOKEN}"})
+            
+            if content_response.status_code == 200:
+                fetched_files.append({
+                    "filename": filename,
+                    "content": content_response.text
+                })
+            else:
+                print(f"Failed to fetch content for {filename}: {content_response.status_code}")
+                
+    except Exception as e:
+        print(f"Error fetching repo files: {str(e)}")
+            
+    return fetched_files
 
 def extract_files_from_response(response_content: str) -> list[dict]:
     """
@@ -173,22 +225,45 @@ def llm_process(data: dict) -> list[dict]:
         "Content-Type": "application/json"
     }
 
+    current_round = data.get('round', 1)
+
     # System Instruction: Focused and strict
-    system_instruction = (
-        "You are a strict, highly efficient code generation tool. "
-        "Generate ONLY the requested files. "
-        "DO NOT add any conversational text, explanations, or additional markdown outside the required file format. "
-        "Use the specified file format: <<FILENAME.ext>>[newline]<content>[newline]<<END_FILE>>"
-    )
+    if current_round == 1:
+        system_instruction = (
+            "You are a strict, highly efficient code generation tool. "
+            "Generate ONLY the requested files. "
+            "DO NOT add any conversational text, explanations, or additional markdown outside the required file format. "
+            "Use the specified file format: <<FILENAME.ext>>[newline]<content>[newline]<<END_FILE>>"
+        )
+    else: # For Round 2 and beyond
+        # This instruction incorporates the allowance for new files
+        system_instruction = (
+            "You are a strict, highly efficient code refactoring and feature implementation tool. "
+            "Your task is to **UPDATE** the existing project files provided in the context to implement the new brief and pass all checks. "
+            "**PRIORITIZE UPDATING EXISTING FILES.** "
+            "**ONLY OUTPUT FILES THAT NEED MODIFICATION OR ARE NEWLY CREATED.** Do not output unchanged files. "
+            "DO NOT add any conversational text, explanations, or additional markdown outside the required file format. "
+            "Use the specified file format: <<FILENAME.ext>>[newline]<content>[newline]<<END_FILE>>"
+        )
+
+    if current_round == 1:
+        # User Prompt for Round 1 (Initial Generation)
+        prompt_goal = "Generate a complete, high-quality web app."
+    else:
+        # User Prompt for Round 2 (Update/Refactoring)
+        prompt_goal = (
+            f"UPDATE the existing web app (provided in the 'EXISTING CODE CONTEXT' below) to implement the new brief for Round 2. "
+            "ONLY output the complete, updated content for files that require changes. You may generate **NEW FILES** if they are necessary to complete the task."
+        )
 
     # User Prompt: Highly compressed
     prompt = f"""
     Task: {data.get('task')}
     Brief: {data.get('brief')}
-    Generate a complete, high-quality web app. All code must be well-documented.
+    Round: {current_round}
+    Goal: {prompt_goal}
     Checks: {data.get('checks')}
     Files required: README.md, plus necessary HTML, CSS, JS, Python.
-
     """
     
     # Attachments: Included as a dedicated, compressed block
@@ -199,7 +274,11 @@ def llm_process(data: dict) -> list[dict]:
             prompt += f"{attachment.get('name', 'N/A')}: {attachment.get('url', 'N/A')}\n"
         prompt += "--- END ATTACHMENTS ---\n"
 
-
+    existing_code = data.get('existing_code_context')
+    if existing_code:
+        prompt += f"\n{existing_code}\n"
+        prompt += "Carefully review the existing code above. Your generated files in the output MUST be complete and correctly integrated with this existing code to implement the requested brief.\n"
+    print(prompt)
     # Output Instruction: Strict format definition (Critical for robustness)
     prompt += """
     
@@ -348,6 +427,17 @@ async def round2_handler(data: dict) -> dict:
     '''Handle round 2 tasks: feature update, code refactoring'''
 
     reponame = f"{data['task']}-{data['nonce']}"
+    existing_files = fetch_repo_files(reponame)
+
+    context_block = "\n--- EXISTING CODE CONTEXT ---\n"
+    for file in existing_files:
+        context_block += f"<<{file['filename']}>>\n{file['content']}\n<<END_FILE>>\n"
+    context_block += "--- END EXISTING CODE CONTEXT ---\n"
+    
+    # Add the context block to the data object
+    data['existing_code_context'] = context_block
+
+    print(existing_files)
     
     # LLM OPERATIONS
     files = await asyncio.to_thread(partial(llm_process, data=data))
@@ -429,8 +519,11 @@ async def handle_task(data: dict):
                 
             return payload
         else:
-            return {"error": "Invalid round"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+            payload = {"error": "Invalid round"}
+            if data.get('evaluation_url'):
+                try:
+                    requests.post(data.get('evaluation_url'), json=payload, timeout=5)
+                except Exception as e:
+                    print(f"Failed to notify evaluation_url: {str(e)}")
+                
+            return payload
