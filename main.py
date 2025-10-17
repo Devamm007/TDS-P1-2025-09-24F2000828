@@ -473,7 +473,10 @@ checks[array], evaluation_url, attachments[array with object with fields name an
 async def handle_task(data: dict):
     # validate secret
     if not validate_secret(data.get('secret', '')):
-        return {"error": "Invalid secret"}
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid secret"
+        )
     else:
         # process the task
         if data.get('round') == 1:
