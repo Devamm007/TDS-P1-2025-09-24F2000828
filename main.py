@@ -167,6 +167,7 @@ def fetch_repo_files(reponame: str) -> list[dict]:
                 })
             else:
                 print(f"Failed to fetch content for {filename}: {content_response.status_code}")
+        print(f"Fetched files from repo successfully")
                 
     except Exception as e:
         print(f"Error fetching repo files: {str(e)}")
@@ -278,7 +279,7 @@ def llm_process(data: dict) -> list[dict]:
     if existing_code:
         prompt += f"\n{existing_code}\n"
         prompt += "Carefully review the existing code above. Your generated files in the output MUST be complete and correctly integrated with this existing code to implement the requested brief.\n"
-    print(prompt)
+    
     # Output Instruction: Strict format definition (Critical for robustness)
     prompt += """
     
@@ -330,7 +331,7 @@ def llm_process(data: dict) -> list[dict]:
         # Parse LLM response and extract code files
         content = response.json()["choices"][0]["message"]["content"]
         files = extract_files_from_response(content)
-        print(f"LLM generated files: {files}")
+        print(f"LLM generated files successfully")
         return files
 
     except Exception as e:
@@ -352,7 +353,7 @@ def get_file_sha(reponame: str, filename: str) -> str:
         if response.status_code == 200:
             return response.json()["sha"]
     except:
-        pass
+        raise Exception(f"Failed to get file SHA for {filename} in repo {reponame}")
     return None
 
 def push_code(reponame: str, files: list[dict], round: int):
@@ -436,8 +437,6 @@ async def round2_handler(data: dict) -> dict:
     
     # Add the context block to the data object
     data['existing_code_context'] = context_block
-
-    print(existing_files)
     
     # LLM OPERATIONS
     files = await asyncio.to_thread(partial(llm_process, data=data))
